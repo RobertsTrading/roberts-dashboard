@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roberts Trading Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+  :root{--gold:#9B813F;--gold-light:#b89f5a;--gold-bg:rgba(155,129,63,0.08);--gold-border:rgba(155,129,63,0.22);--navy:#0d1b35;--white:#fff;--off-white:#faf8f4;--text:#1a1a2e;--muted:#7a7a8a;--green:#2a7a52;--red:#b83232;--r:14px;--sh:0 2px 16px rgba(13,27,53,0.08)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--text);min-height:100vh}
+
+  .banner{display:none;background:#fdf6e3;border-bottom:1px solid #e8d9a0;color:#7a6520;font-size:13px;padding:10px 28px;text-align:center}
+  .banner.show{display:block}
+
+  .hdr{background:var(--navy);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--gold);gap:14px;flex-wrap:wrap}
+  .bn{font-family:'Playfair Display',serif;font-size:20px;color:#fff;letter-spacing:.02em}
+  .bs2{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;margin-top:2px}
+  .hr{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .wb{font-size:11px;color:rgba(255,255,255,.45)}
+  .bl{background:var(--gold);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+  .bl:hover{background:var(--gold-light)}
+  .bl:disabled{opacity:.6;cursor:default}
+
+  .main{padding:24px 28px;max-width:960px;margin:0 auto}
+
+  .kg{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+  .kc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--sh)}
+  .kc.dk{background:var(--navy);border:none}
+  .kc.gn{background:#f0f7f3;border-color:rgba(42,122,82,.25)}
+  .kl{font-size:9px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.12em}
+  .kc.dk .kl{color:rgba(255,255,255,.45)}
+  .kc.gn .kl{color:var(--green)}
+  .kv{font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);line-height:1.1}
+  .kc.dk .kv{color:#f5f0e6}
+  .kc.gn .kv{color:var(--green)}
+  .kd{font-size:10px;font-weight:500;display:flex;align-items:center;gap:2px}
+  .du{color:var(--green)}.dd{color:var(--red)}.dn{color:var(--muted)}
+
+  .avgbar{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+  .avgbar .al{font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.12em}
+  .avgbar .av{font-family:'Playfair Display',serif;font-size:18px;color:var(--navy)}
+  .avgbar .ad{font-size:11px;font-weight:500}
+
+  .dg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+  .dc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:16px;display:flex;flex-direction:column;gap:10px}
+  .dc.dk{background:var(--navy);border:none}
+  .dh{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .dt{font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.12em}
+  .dc.dk .dt{color:rgba(255,255,255,.5)}
+  .dwk{font-size:10px;color:var(--muted)}
+  .dc.dk .dwk{color:rgba(255,255,255,.35)}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{font-size:10px;font-weight:600;color:#fff;border-radius:20px;padding:3px 9px}
+  .dl{list-style:none;display:flex;flex-direction:column;gap:7px;max-height:230px;overflow-y:auto}
+  .dl li{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+  .dl .nm{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dc.dk .dl .nm{color:#f5f0e6}
+  .tag{font-size:9px;font-weight:600;color:#fff;border-radius:12px;padding:2px 8px;white-space:nowrap}
+  .qnum{font-size:11px;color:var(--muted);min-width:46px}
+  .qval{font-size:13px;font-weight:500;color:var(--navy)}
+  .dc.dk .qval{color:#f5f0e6}
+  .jtag{font-size:10px;font-weight:600;background:var(--gold);color:#fff;border-radius:12px;padding:2px 9px;white-space:nowrap}
+  .dtot{border-top:1px solid var(--gold-border);padding-top:9px;display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--navy)}
+  .dc.dk .dtot{border-color:rgba(255,255,255,.15);color:var(--gold-light)}
+  .empty{font-size:12px;color:var(--muted);font-style:italic}
+  .dc.dk .empty{color:rgba(255,255,255,.4)}
+
+  .cc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:20px}
+  .tabs{display:flex;gap:6px;margin-bottom:12px}
+  .tab{background:none;border:1px solid var(--gold-border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 16px;cursor:pointer}
+  .tab.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .cwrap{position:relative;height:280px}
+
+  .hc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:32px}
+  .ht{font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
+  .hrow{border-top:1px solid rgba(155,129,63,.12)}
+  .hrow:first-of-type{border-top:none}
+  .hbar{display:flex;align-items:center;gap:10px;padding:11px 4px;cursor:pointer;flex-wrap:wrap}
+  .hbar:hover{background:var(--gold-bg)}
+  .hwk{font-family:'Playfair Display',serif;font-size:15px;color:var(--navy);min-width:120px}
+  .latest{font-size:9px;font-weight:700;background:var(--gold);color:#fff;border-radius:10px;padding:2px 8px;letter-spacing:.08em}
+  .hsum{font-size:11.5px;color:var(--muted);flex:1}
+  .caret{font-size:10px;color:var(--gold);transition:transform .15s}
+  .hrow.open .caret{transform:rotate(90deg)}
+  .hdet{display:none;padding:4px 4px 16px}
+  .hrow.open .hdet{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .hcol .hct{font-size:9px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+  .hcol ul{list-style:none;display:flex;flex-direction:column;gap:5px}
+  .hcol li{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text)}
+  .hcol .sub{color:var(--muted);font-size:10.5px}
+  .hcol .tl{border-top:1px solid var(--gold-border);margin-top:6px;padding-top:6px;font-weight:600;color:var(--navy)}
+
+  @media(max-width:860px){.kg{grid-template-columns:repeat(3,1fr)}.dg{grid-template-columns:1fr}.hrow.open .hdet{grid-template-columns:1fr}}
+  @media(max-width:520px){.kg{grid-template-columns:repeat(2,1fr)}.main{padding:18px 14px}}
+</style>
+</head>
+<body>
+
+<div class="banner" id="banner"></div>
+
+<header class="hdr">
+  <div>
+    <div class="bn">Roberts Trading</div>
+    <div class="bs2">Weekly Performance</div>
+  </div>
+  <div class="hr">
+    <span class="wb" id="weeksBadge"></span>
+    <span class="wb" id="updatedStamp"></span>
+    <button class="bl" id="refreshBtn" onclick="load(true)">Refresh</button>
+  </div>
+</header>
+
+<main class="main">
+  <div class="kg" id="kpiGrid"></div>
+  <div class="avgbar" id="avgBar"></div>
+  <div class="dg" id="detailGrid"></div>
+  <section class="cc">
+    <div class="tabs">
+      <button class="tab on" id="tabRevenue" onclick="setTab('revenue')">Revenue</button>
+      <button class="tab" id="tabVolume" onclick="setTab('volume')">Volume</button>
+    </div>
+    <div class="cwrap"><canvas id="chartCanvas"></canvas></div>
+  </section>
+  <section class="hc">
+    <div class="ht">All Weeks</div>
+    <div id="histList"></div>
+  </section>
+</main>
+
+<script>
+// ============================================================
+// CONFIG — paste the deployed Google Apps Script Web App URL
+// between the quotes below (it ends in /exec):
+// ============================================================
+const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw7W9wKuydqZMPg6bnuOT1UK7OEAZ-olUsXisUrw3WR_fZem-jeENQ8oACHUIiH_4nuPw/exec';
+
+// Canonical sources & colours
+const SRC=['SMS','Email','Enquiry Text','Dulux Lead','Call','Google','Text (friend)','Referral','Website','Other'];
+const SC={SMS:'#9B813F',Email:'#1a5f8a','Enquiry Text':'#7b4fa6','Dulux Lead':'#2e7d55',Call:'#c47a1e',Google:'#d44638','Text (friend)':'#e67e22',Referral:'#b85a2a',Website:'#1a7a6e',Other:'#888'};
+
+// Helpers (KEEP — these encode bug fixes):
+const fA=n=>'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2});
+const fK=n=>n>=1000?'$'+(n/1000).toFixed(1)+'k':'$'+Math.round(n);
+const sum=(a,k)=>a.reduce((t,b)=>t+(Number(b[k])||0),0);
+// Delta MUST take raw numbers, never formatted strings (past bug: "$41.9k" parsed as 41.9):
+const pctDelta=(curr,prev)=>prev>0?Math.round(((curr-prev)/prev)*100):null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Per-week metrics — NOTE: no win-rate, no enquiry→quote rate (removed on purpose;
+// jobs won in a week come from quotes sent in earlier weeks, so those rates mislead):
+function getMetrics(w){
+  const tv=sum(w.quotes,'value'), tw=sum(w.won,'value');
+  return { ec:w.enquiries.length, qc:w.quotes.length, tv, tw, wc:w.won.length,
+           inv:w.invoiceValue||0, aq:w.quotes.length>0?Math.round(tv/w.quotes.length):0 };
+}
+
+// Weeks arrive from the sheet in chronological order (top of sheet = oldest).
+// That order is trusted as-is — no re-sorting by DD/MM, which would break at
+// the December → January rollover.
+let weeks=[];
+let chart=null, currentTab='revenue';
+
+// ---------- data loading ----------
+async function load(fresh){
+  const btn=document.getElementById('refreshBtn');
+  btn.disabled=true; btn.textContent=fresh?'Refreshing…':'Loading…';
+  try{
+    if(!/^https:\/\//.test(SHEET_API_URL)) throw new Error('not configured');
+    const url=SHEET_API_URL+(fresh?(SHEET_API_URL.includes('?')?'&':'?')+'fresh=1':'');
+    const res=await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    if(!Array.isArray(data.weeks)||!data.weeks.length) throw new Error('empty feed');
+    weeks=data.weeks;
+    setBanner('');
+    renderAll(data.lastUpdated);
+  }catch(e){
+    weeks=FALLBACK_SEEDS;
+    setBanner('Could not reach the Google Sheet — showing the last saved numbers instead.');
+    renderAll(null);
+  }finally{
+    btn.disabled=false; btn.textContent='Refresh';
+  }
+}
+
+function setBanner(msg){
+  const b=document.getElementById('banner');
+  b.textContent=msg?('⚠ '+msg):'';
+  b.classList.toggle('show',!!msg);
+}
+
+// ---------- rendering ----------
+function renderAll(lastUpdated){
+  const latest=weeks[weeks.length-1], prev=weeks[weeks.length-2]||null;
+  const m=getMetrics(latest), p=prev?getMetrics(prev):null;
+
+  document.getElementById('weeksBadge').textContent=weeks.length+' weeks tracked';
+  document.getElementById('updatedStamp').textContent=lastUpdated
+    ?('Updated '+new Date(lastUpdated).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))
+    :'Saved data';
+
+  renderKpis(m,p);
+  renderAvgBar(m,p);
+  renderDetails(latest,m);
+  renderChart();
+  renderHistory();
+}
+
+function deltaHtml(curr,prevVal){
+  if(prevVal==null) return '';
+  const d=pctDelta(curr,prevVal);
+  if(d===null) return '<span class="kd dn">—</span>';
+  if(d===0) return '<span class="kd dn">0% vs prev</span>';
+  const up=d>0;
+  return '<span class="kd '+(up?'du':'dd')+'">'+(up?'▲':'▼')+' '+Math.abs(d)+'% vs prev</span>';
+}
+
+function renderKpis(m,p){
+  const cards=[
+    {l:'Enquiries',      v:m.ec,       d:p?p.ec:null,  fmt:String},
+    {l:'Quotes Sent',    v:m.qc,       d:p?p.qc:null,  fmt:String},
+    {l:'Quote Value',    v:m.tv,       d:p?p.tv:null,  fmt:fK, cls:'dk'},
+    {l:'Won Value',      v:m.tw,       d:p?p.tw:null,  fmt:fK},
+    {l:'Jobs Won',       v:m.wc,       d:p?p.wc:null,  fmt:String},
+    {l:'Invoiced',       v:m.inv,      d:p?p.inv:null, fmt:fK, cls:'gn'}
+  ];
+  document.getElementById('kpiGrid').innerHTML=cards.map(c=>
+    '<div class="kc '+(c.cls||'')+'"><div class="kl">'+c.l+'</div><div class="kv">'+c.fmt(c.v)+'</div>'+deltaHtml(c.v,c.d)+'</div>'
+  ).join('');
+}
+
+function renderAvgBar(m,p){
+  document.getElementById('avgBar').innerHTML=
+    '<span class="al">Avg Quote Size</span><span class="av">'+fA(m.aq)+'</span>'+
+    '<span class="ad">'+(p?deltaHtml(m.aq,p.aq):'')+'</span>';
+}
+
+function renderDetails(w,m){
+  // source summary chips
+  const counts={};
+  w.enquiries.forEach(e=>counts[e.source]=(counts[e.source]||0)+1);
+  const chips=SRC.filter(s=>counts[s]).map(s=>
+    '<span class="chip" style="background:'+SC[s]+'">'+esc(s)+' · '+counts[s]+'</span>').join('');
+
+  const enqList=w.enquiries.length?w.enquiries.map(e=>
+    '<li><span class="nm">'+esc(e.name)+'</span><span class="tag" style="background:'+(SC[e.source]||SC.Other)+'">'+esc(e.source)+'</span></li>').join(''):'<li class="empty">No enquiries logged yet</li>';
+
+  const qList=w.quotes.length?w.quotes.map(q=>
+    '<li><span class="qnum">'+(q.quoteNumber?'#'+esc(q.quoteNumber):'—')+'</span><span class="qval">'+fA(q.value)+'</span></li>').join(''):'<li class="empty">No quotes logged yet</li>';
+
+  const wList=w.won.length?w.won.map(x=>
+    '<li><span class="jtag">'+esc(x.jobNumber||'—')+'</span><span class="qval">'+fA(x.value)+'</span></li>').join(''):'<li class="empty">No jobs won yet</li>';
+
+  document.getElementById('detailGrid').innerHTML=
+    '<div class="dc"><div class="dh"><span class="dt">Enquiries</span><span class="dwk">'+esc(w.weekLabel)+'</span></div>'+
+      '<div class="chips">'+chips+'</div><ul class="dl">'+enqList+'</ul></div>'+
+    '<div class="dc"><div class="dh"><span class="dt">Quotes Sent</span><span class="dwk">'+esc(w.weekLabel)+'</span></div>'+
+      '<ul class="dl">'+qList+'</ul><div class="dtot"><span>Total quoted</span><span>'+fA(m.tv)+'</span></div></div>'+
+    '<div class="dc dk"><div class="dh"><span class="dt">Jobs Won</span><span class="dwk">'+esc(w.weekLabel)+'</span></div>'+
+      '<ul class="dl">'+wList+'</ul><div class="dtot"><span>Total won</span><span>'+fA(m.tw)+'</span></div></div>';
+}
+
+function setTab(t){
+  currentTab=t;
+  document.getElementById('tabRevenue').classList.toggle('on',t==='revenue');
+  document.getElementById('tabVolume').classList.toggle('on',t==='volume');
+  renderChart();
+}
+
+function renderChart(){
+  const labels=weeks.map(w=>w.weekLabel);
+  const ms=weeks.map(getMetrics);
+  if(chart){chart.destroy();chart=null;}
+  const ctx=document.getElementById('chartCanvas').getContext('2d');
+  const base={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{family:'DM Sans'},boxWidth:14}}},
+    scales:{x:{ticks:{font:{family:'DM Sans',size:10}},grid:{display:false}},
+            y:{ticks:{font:{family:'DM Sans',size:10}},grid:{color:'rgba(13,27,53,0.06)'}}}};
+  if(currentTab==='revenue'){
+    base.scales.y.ticks.callback=v=>fK(v);
+    chart=new Chart(ctx,{type:'line',data:{labels,datasets:[
+      {label:'Quote Value',data:ms.map(m=>m.tv),borderColor:'#9B813F',backgroundColor:'rgba(155,129,63,.12)',tension:.3,pointRadius:3},
+      {label:'Won Value',data:ms.map(m=>m.tw),borderColor:'#0d1b35',backgroundColor:'rgba(13,27,53,.1)',tension:.3,pointRadius:3},
+      {label:'Invoiced',data:ms.map(m=>m.inv),borderColor:'#2a7a52',backgroundColor:'rgba(42,122,82,.1)',tension:.3,pointRadius:3}
+    ]},options:base});
+  }else{
+    chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[
+      {label:'Enquiries',data:ms.map(m=>m.ec),backgroundColor:'#0d1b35',borderRadius:4},
+      {label:'Quotes',data:ms.map(m=>m.qc),backgroundColor:'#9B813F',borderRadius:4}
+    ]},options:base});
+  }
+}
+
+function renderHistory(){
+  const newestFirst=[...weeks].reverse();
+  document.getElementById('histList').innerHTML=newestFirst.map((w,i)=>{
+    const m=getMetrics(w);
+    const enq=w.enquiries.map(e=>'<li><span>'+esc(e.name)+'</span><span class="sub">'+esc(e.source)+'</span></li>').join('')||'<li class="sub">none</li>';
+    const qts=w.quotes.map(q=>'<li><span class="sub">'+(q.quoteNumber?'#'+esc(q.quoteNumber):'—')+'</span><span>'+fA(q.value)+'</span></li>').join('')||'<li class="sub">none</li>';
+    const won=w.won.map(x=>'<li><span class="sub">'+esc(x.jobNumber||'—')+'</span><span>'+fA(x.value)+'</span></li>').join('')||'<li class="sub">none</li>';
+    return '<div class="hrow" id="hr'+i+'">'+
+      '<div class="hbar" onclick="document.getElementById(\'hr'+i+'\').classList.toggle(\'open\')">'+
+        '<span class="caret">▶</span><span class="hwk">'+esc(w.weekLabel)+'</span>'+
+        (i===0?'<span class="latest">LATEST</span>':'')+
+        '<span class="hsum">'+m.ec+' enquiries · '+m.qc+' quotes · '+fK(m.tv)+' quoted · '+m.wc+' won · '+fK(m.inv)+' invoiced</span>'+
+      '</div>'+
+      '<div class="hdet">'+
+        '<div class="hcol"><div class="hct">Enquiries ('+m.ec+')</div><ul>'+enq+'</ul></div>'+
+        '<div class="hcol"><div class="hct">Quotes ('+m.qc+')</div><ul>'+qts+'<li class="tl"><span>Total</span><span>'+fA(m.tv)+'</span></li></ul></div>'+
+        '<div class="hcol"><div class="hct">Won ('+m.wc+')</div><ul>'+won+'<li class="tl"><span>Total</span><span>'+fA(m.tw)+'</span></li></ul></div>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ---------- offline fallback (auto-generated from the sheet on 12 Jun 2026) ----------
+const FALLBACK_SEEDS=[{"id":"1404-1704","weekLabel":"14/04 – 17/04","enquiries":[{"id":"e1","name":"Sandra","source":"SMS"},{"id":"e2","name":"Sven","source":"SMS"},{"id":"e3","name":"Crystal","source":"SMS"},{"id":"e4","name":"Linda","source":"SMS"},{"id":"e5","name":"Roland","source":"Enquiry Text"},{"id":"e6","name":"Edward","source":"Enquiry Text"},{"id":"e7","name":"Luke","source":"SMS"}],"quotes":[{"id":"q1","quoteNumber":"","value":119330},{"id":"q2","quoteNumber":"","value":36985},{"id":"q3","quoteNumber":"","value":127725},{"id":"q4","quoteNumber":"","value":22605},{"id":"q5","quoteNumber":"","value":108405},{"id":"q6","quoteNumber":"","value":4850},{"id":"q7","quoteNumber":"","value":19405},{"id":"q8","quoteNumber":"","value":79855},{"id":"q9","quoteNumber":"","value":2720},{"id":"q10","quoteNumber":"","value":1350}],"won":[{"id":"w1","jobNumber":"#1328","value":2720}],"invoiceValue":70000},{"id":"2004-2404","weekLabel":"20/04 – 24/04","enquiries":[{"id":"e1","name":"Robert Plumb","source":"Email"},{"id":"e2","name":"Dulux Lead","source":"Dulux Lead"},{"id":"e3","name":"Bill","source":"Enquiry Text"},{"id":"e4","name":"Waverley Council","source":"Email"},{"id":"e5","name":"Sira","source":"Enquiry Text"},{"id":"e6","name":"Karen","source":"Enquiry Text"},{"id":"e7","name":"Dulux Lead","source":"Dulux Lead"}],"quotes":[{"id":"q1","quoteNumber":"","value":6100},{"id":"q2","quoteNumber":"","value":25960},{"id":"q3","quoteNumber":"","value":3600},{"id":"q4","quoteNumber":"","value":3900},{"id":"q5","quoteNumber":"","value":52490},{"id":"q6","quoteNumber":"","value":48050},{"id":"q7","quoteNumber":"","value":600}],"won":[{"id":"w1","jobNumber":"#1162","value":41800},{"id":"w2","jobNumber":"#1324","value":3900},{"id":"w3","jobNumber":"#1321","value":3600}],"invoiceValue":38341.6},{"id":"2804-0105","weekLabel":"28/04 – 01/05","enquiries":[{"id":"e1","name":"Matthew","source":"Enquiry Text"},{"id":"e2","name":"Robert Plumb","source":"Email"}],"quotes":[{"id":"q1","quoteNumber":"1339","value":3920},{"id":"q2","quoteNumber":"1355","value":8370},{"id":"q3","quoteNumber":"1342","value":29580}],"won":[{"id":"w1","jobNumber":"#1336","value":600},{"id":"w2","jobNumber":"#1225","value":99040},{"id":"w3","jobNumber":"#1221","value":18530},{"id":"w4","jobNumber":"#1291","value":380}],"invoiceValue":75138},{"id":"0405-0705","weekLabel":"04/05 – 07/05","enquiries":[{"id":"e1","name":"Waverley Council","source":"Email"},{"id":"e2","name":"Stephanie","source":"Call"},{"id":"e3","name":"Robert Plumb","source":"Email"}],"quotes":[{"id":"q1","quoteNumber":"1359","value":14990},{"id":"q2","quoteNumber":"1344","value":53541},{"id":"q3","quoteNumber":"1350","value":1671.5},{"id":"q4","quoteNumber":"1347","value":9035},{"id":"q5","quoteNumber":"1362","value":151724},{"id":"q6","quoteNumber":"1335","value":52360},{"id":"q7","quoteNumber":"1344","value":53541},{"id":"q8","quoteNumber":"1370","value":2450}],"won":[{"id":"w1","jobNumber":"#1355","value":8370},{"id":"w2","jobNumber":"#1154","value":20476},{"id":"w3","jobNumber":"#1370","value":2450}],"invoiceValue":104119},{"id":"1105-1505","weekLabel":"11/05 – 15/05","enquiries":[{"id":"e1","name":"David","source":"Google"},{"id":"e2","name":"Aalta","source":"Email"},{"id":"e3","name":"Adam","source":"Text (friend)"}],"quotes":[{"id":"q1","quoteNumber":"1327","value":37726},{"id":"q2","quoteNumber":"1377","value":37726},{"id":"q3","quoteNumber":"1326","value":196044},{"id":"q4","quoteNumber":"1351","value":4250},{"id":"q5","quoteNumber":"1331","value":12160},{"id":"q6","quoteNumber":"1294","value":142645},{"id":"q7","quoteNumber":"1343","value":250},{"id":"q8","quoteNumber":"1352","value":4480},{"id":"q9","quoteNumber":"1326","value":196044},{"id":"q10","quoteNumber":"1369","value":3330},{"id":"q11","quoteNumber":"1363","value":41200},{"id":"q12","quoteNumber":"1325","value":75932.5},{"id":"q13","quoteNumber":"1358","value":6700}],"won":[{"id":"w1","jobNumber":"#1202","value":5850},{"id":"w2","jobNumber":"#1227","value":5700},{"id":"w3","jobNumber":"#1351","value":4250},{"id":"w4","jobNumber":"#1376","value":4995},{"id":"w5","jobNumber":"#1342","value":4260}],"invoiceValue":167855},{"id":"1805-2205","weekLabel":"18/05 – 22/05","enquiries":[{"id":"e1","name":"Waverley Council","source":"Email"},{"id":"e2","name":"Waverley Council","source":"Email"},{"id":"e3","name":"Angela and Tuly Rosenfeld","source":"Referral"},{"id":"e4","name":"Heritage Windows","source":"Email"},{"id":"e5","name":"Luke Nicolas (Builder)","source":"Email"},{"id":"e6","name":"Janie","source":"Text (friend)"}],"quotes":[{"id":"q1","quoteNumber":"1385","value":2300},{"id":"q2","quoteNumber":"1378","value":4362.5},{"id":"q3","quoteNumber":"1392","value":9500},{"id":"q4","quoteNumber":"1380","value":70256.82},{"id":"q5","quoteNumber":"1357","value":68470},{"id":"q6","quoteNumber":"1379","value":19360},{"id":"q7","quoteNumber":"1397","value":2800},{"id":"q8","quoteNumber":"1390","value":6300}],"won":[{"id":"w1","jobNumber":"#1392","value":9500}],"invoiceValue":71446.1},{"id":"2505-2905","weekLabel":"25/05 – 29/05","enquiries":[{"id":"e1","name":"Dulux Enquiry","source":"Dulux Lead"},{"id":"e2","name":"Robert Plumb","source":"Email"},{"id":"e3","name":"B-Mac Construction","source":"Email"},{"id":"e4","name":"Peter","source":"Email"},{"id":"e5","name":"Amelia","source":"Google"},{"id":"e6","name":"Tara McPhee","source":"Google"}],"quotes":[{"id":"q1","quoteNumber":"1127","value":3065},{"id":"q2","quoteNumber":"1288","value":59740},{"id":"q3","quoteNumber":"1396","value":10160},{"id":"q4","quoteNumber":"1399","value":34125},{"id":"q5","quoteNumber":"1395","value":14460},{"id":"q6","quoteNumber":"1398","value":41730},{"id":"q7","quoteNumber":"1372","value":2675},{"id":"q8","quoteNumber":"1391","value":2655},{"id":"q9","quoteNumber":"1390","value":6300},{"id":"q10","quoteNumber":"1400","value":38800}],"won":[{"id":"w1","jobNumber":"#1189","value":4560},{"id":"w2","jobNumber":"#1127","value":3065},{"id":"w3","jobNumber":"#1350","value":1671}],"invoiceValue":42526},{"id":"0106-0506","weekLabel":"01/06 – 05/06","enquiries":[{"id":"e1","name":"Hatch Construction","source":"Text (friend)"},{"id":"e2","name":"Validvs Construction","source":"Text (friend)"},{"id":"e3","name":"Cammeray Gardens","source":"Email"},{"id":"e4","name":"Adam Osher","source":"Text (friend)"},{"id":"e5","name":"Alexia","source":"Text (friend)"}],"quotes":[{"id":"q1","quoteNumber":"1413","value":8440},{"id":"q2","quoteNumber":"1417","value":4025},{"id":"q3","quoteNumber":"1414","value":2460},{"id":"q4","quoteNumber":"1415","value":10700}],"won":[{"id":"w1","jobNumber":"#1395","value":14460},{"id":"w2","jobNumber":"#1417","value":4025},{"id":"w3","jobNumber":"#1413","value":8440}],"invoiceValue":46868},{"id":"0906-1206","weekLabel":"09/06 – 12/06","enquiries":[{"id":"e1","name":"Margaret","source":"Text (friend)"},{"id":"e2","name":"Terri","source":"Text (friend)"},{"id":"e3","name":"Mike Alston","source":"Enquiry Text"},{"id":"e4","name":"Bondi Pavilion","source":"Email"}],"quotes":[{"id":"q1","quoteNumber":"1444","value":1160}],"won":[{"id":"w1","jobNumber":"#1399","value":34125},{"id":"w2","jobNumber":"#1362","value":129268}],"invoiceValue":0}];
+
+load(false);
+</script>
+</body>
+</html>
