@@ -26,6 +26,13 @@
 
   .main{padding:24px 28px;max-width:960px;margin:0 auto}
 
+  .qbar{display:none;background:var(--navy);border-left:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--sh);padding:16px 20px;margin-bottom:14px;align-items:baseline;gap:18px;flex-wrap:wrap}
+  .qbar.show{display:flex}
+  .qbar .ql{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:.14em;text-transform:uppercase}
+  .qbar .qv{font-family:'Playfair Display',serif;font-size:22px;color:#fff;line-height:1.1}
+  .qbar .qv .qu{font-size:12px;font-family:'DM Sans',sans-serif;color:rgba(255,255,255,.55);margin-left:4px}
+  .qbar .qs{font-size:11px;color:rgba(255,255,255,.4);margin-left:auto}
+
   .kg{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
   .kc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--sh)}
   .kc.dk{background:var(--navy);border:none}
@@ -69,12 +76,12 @@
   .dc.dk .empty{color:rgba(255,255,255,.4)}
 
   .cc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:20px}
-  .tabs{display:flex;gap:6px;margin-bottom:12px}
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
   .tab{background:none;border:1px solid var(--gold-border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:6px 16px;cursor:pointer}
   .tab.on{background:var(--navy);border-color:var(--navy);color:#fff}
   .cwrap{position:relative;height:280px}
 
-  .hc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:32px}
+  .hc{background:var(--white);border:.5px solid var(--gold-border);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin-bottom:14px}
   .ht{font-size:10px;font-weight:600;color:var(--gold);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
   .hrow{border-top:1px solid rgba(155,129,63,.12)}
   .hrow:first-of-type{border-top:none}
@@ -92,6 +99,8 @@
   .hcol li{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text)}
   .hcol .sub{color:var(--muted);font-size:10.5px}
   .hcol .tl{border-top:1px solid var(--gold-border);margin-top:6px;padding-top:6px;font-weight:600;color:var(--navy)}
+
+  .foot{font-size:10.5px;color:var(--muted);text-align:center;padding:4px 0 28px}
 
   @media(max-width:860px){.kg{grid-template-columns:repeat(3,1fr)}.dg{grid-template-columns:1fr}.hrow.open .hdet{grid-template-columns:1fr}}
   @media(max-width:520px){.kg{grid-template-columns:repeat(2,1fr)}.main{padding:18px 14px}}
@@ -114,6 +123,7 @@
 </header>
 
 <main class="main">
+  <div class="qbar" id="queueBar"></div>
   <div class="kg" id="kpiGrid"></div>
   <div class="avgbar" id="avgBar"></div>
   <div class="dg" id="detailGrid"></div>
@@ -121,6 +131,7 @@
     <div class="tabs">
       <button class="tab on" id="tabRevenue" onclick="setTab('revenue')">Revenue</button>
       <button class="tab" id="tabVolume" onclick="setTab('volume')">Volume</button>
+      <button class="tab" id="tabLastyear" onclick="setTab('lastyear')" style="display:none">vs Last Year</button>
     </div>
     <div class="cwrap"><canvas id="chartCanvas"></canvas></div>
   </section>
@@ -128,6 +139,7 @@
     <div class="ht">All Weeks</div>
     <div id="histList"></div>
   </section>
+  <div class="foot">Enquiries, quotes sent, invoices &amp; queue counted automatically from ServiceM8 · last-year comparison from Xero · all $ ex GST · refreshes hourly</div>
 </main>
 
 <script>
@@ -137,9 +149,9 @@
 // ============================================================
 const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbw7W9wKuydqZMPg6bnuOT1UK7OEAZ-olUsXisUrw3WR_fZem-jeENQ8oACHUIiH_4nuPw/exec';
 
-// Canonical sources & colours
-const SRC=['SMS','Email','Enquiry Text','Dulux Lead','Call','Google','Text (friend)','Referral','Website','Other'];
-const SC={SMS:'#9B813F',Email:'#1a5f8a','Enquiry Text':'#7b4fa6','Dulux Lead':'#2e7d55',Call:'#c47a1e',Google:'#d44638','Text (friend)':'#e67e22',Referral:'#b85a2a',Website:'#1a7a6e',Other:'#888'};
+// Canonical sources & colours ("ServiceM8" = auto-logged job, tag shows the job #)
+const SRC=['SMS','Email','Enquiry Text','Dulux Lead','Call','Google','Text (friend)','Referral','Website','ServiceM8','Other'];
+const SC={SMS:'#9B813F',Email:'#1a5f8a','Enquiry Text':'#7b4fa6','Dulux Lead':'#2e7d55',Call:'#c47a1e',Google:'#d44638','Text (friend)':'#e67e22',Referral:'#b85a2a',Website:'#1a7a6e',ServiceM8:'#546E7A',Other:'#888'};
 
 // Helpers (KEEP — these encode bug fixes):
 const fA=n=>'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2});
@@ -161,6 +173,7 @@ function getMetrics(w){
 // That order is trusted as-is — no re-sorting by DD/MM, which would break at
 // the December → January rollover.
 let weeks=[];
+let stats=null;   // Dashboard-tab feed: ServiceM8 + Xero numbers (may be null on old data)
 let chart=null, currentTab='revenue';
 
 // ---------- data loading ----------
@@ -175,10 +188,12 @@ async function load(fresh){
     const data=await res.json();
     if(!Array.isArray(data.weeks)||!data.weeks.length) throw new Error('empty feed');
     weeks=data.weeks;
+    stats=(data.stats&&Array.isArray(data.stats.weekly)&&data.stats.weekly.length)?data.stats:null;
     setBanner('');
     renderAll(data.lastUpdated);
   }catch(e){
     weeks=FALLBACK_SEEDS;
+    stats=null;
     setBanner('Could not reach the Google Sheet — showing the last saved numbers instead.');
     renderAll(null);
   }finally{
@@ -196,39 +211,60 @@ function setBanner(msg){
 function renderAll(lastUpdated){
   const latest=weeks[weeks.length-1], prev=weeks[weeks.length-2]||null;
   const m=getMetrics(latest), p=prev?getMetrics(prev):null;
+  const s=stats?stats.weekly[stats.weekly.length-1]:null;
+  const sp=(stats&&stats.weekly.length>1)?stats.weekly[stats.weekly.length-2]:null;
 
   document.getElementById('weeksBadge').textContent=weeks.length+' weeks tracked';
   document.getElementById('updatedStamp').textContent=lastUpdated
     ?('Updated '+new Date(lastUpdated).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))
     :'Saved data';
 
-  renderKpis(m,p);
+  renderQueue();
+  renderKpis(m,p,s,sp);
   renderAvgBar(m,p);
   renderDetails(latest,m);
+  document.getElementById('tabLastyear').style.display=stats?'':'none';
+  if(currentTab==='lastyear'&&!stats) currentTab='revenue';
   renderChart();
   renderHistory();
 }
 
-function deltaHtml(curr,prevVal){
+function renderQueue(){
+  const bar=document.getElementById('queueBar');
+  const q=stats&&stats.readyToSchedule;
+  bar.classList.toggle('show',!!q);
+  if(!q) return;
+  bar.innerHTML=
+    '<span class="ql">Ready To Schedule</span>'+
+    '<span class="qv">'+q.count+'<span class="qu">work order'+(q.count===1?'':'s')+' waiting</span></span>'+
+    '<span class="qv">'+fA(q.value)+'<span class="qu">of work in the queue</span></span>'+
+    '<span class="qs">'+(q.updated?('live from ServiceM8 · updated '+esc(q.updated)):'live from ServiceM8')+'</span>';
+}
+
+function deltaHtml(curr,prevVal,suffix){
+  const sfx=suffix||'vs prev';
   if(prevVal==null) return '';
   const d=pctDelta(curr,prevVal);
   if(d===null) return '<span class="kd dn">—</span>';
-  if(d===0) return '<span class="kd dn">0% vs prev</span>';
+  if(d===0) return '<span class="kd dn">0% '+sfx+'</span>';
   const up=d>0;
-  return '<span class="kd '+(up?'du':'dd')+'">'+(up?'▲':'▼')+' '+Math.abs(d)+'% vs prev</span>';
+  return '<span class="kd '+(up?'du':'dd')+'">'+(up?'▲':'▼')+' '+Math.abs(d)+'% '+sfx+'</span>';
 }
 
-function renderKpis(m,p){
+function renderKpis(m,p,s,sp){
+  // ServiceM8/Xero stats are the source of truth when present; the hand-typed
+  // block lists remain the fallback (and drive the detail cards below).
   const cards=[
-    {l:'Enquiries',      v:m.ec,       d:p?p.ec:null,  fmt:String},
-    {l:'Quotes Sent',    v:m.qc,       d:p?p.qc:null,  fmt:String},
-    {l:'Quote Value',    v:m.tv,       d:p?p.tv:null,  fmt:fK, cls:'dk'},
-    {l:'Won Value',      v:m.tw,       d:p?p.tw:null,  fmt:fK},
-    {l:'Jobs Won',       v:m.wc,       d:p?p.wc:null,  fmt:String},
-    {l:'Invoiced',       v:m.inv,      d:p?p.inv:null, fmt:fK, cls:'gn'}
+    {l:'Enquiries',   v:s?s.enquiries:m.ec,       d:sp?sp.enquiries:(p?p.ec:null),        fmt:String},
+    {l:'Quotes Sent', v:s?s.quotesSent:m.qc,      d:sp?sp.quotesSent:(p?p.qc:null),       fmt:String},
+    {l:'Quote Value', v:s?s.quotesSentValue:m.tv, d:sp?sp.quotesSentValue:(p?p.tv:null),  fmt:fK, cls:'dk'},
+    {l:'Won Value',   v:s?s.wonValue:m.tw,        d:sp?sp.wonValue:(p?p.tw:null),         fmt:fK},
+    {l:'Jobs Won',    v:s?s.won:m.wc,             d:sp?sp.won:(p?p.wc:null),              fmt:String},
+    {l:'Invoiced',    v:s?s.invoiced:m.inv,       d:sp?sp.invoiced:(p?p.inv:null),        fmt:fK, cls:'gn',
+      extra:(s&&s.lyInvoiced!=null)?deltaHtml(s.invoiced,s.lyInvoiced,'vs same wk last yr'):''}
   ];
   document.getElementById('kpiGrid').innerHTML=cards.map(c=>
-    '<div class="kc '+(c.cls||'')+'"><div class="kl">'+c.l+'</div><div class="kv">'+c.fmt(c.v)+'</div>'+deltaHtml(c.v,c.d)+'</div>'
+    '<div class="kc '+(c.cls||'')+'"><div class="kl">'+c.l+'</div><div class="kv">'+c.fmt(c.v)+'</div>'+deltaHtml(c.v,c.d)+(c.extra||'')+'</div>'
   ).join('');
 }
 
@@ -267,18 +303,28 @@ function setTab(t){
   currentTab=t;
   document.getElementById('tabRevenue').classList.toggle('on',t==='revenue');
   document.getElementById('tabVolume').classList.toggle('on',t==='volume');
+  document.getElementById('tabLastyear').classList.toggle('on',t==='lastyear');
   renderChart();
 }
 
 function renderChart(){
-  const labels=weeks.map(w=>w.weekLabel);
-  const ms=weeks.map(getMetrics);
   if(chart){chart.destroy();chart=null;}
   const ctx=document.getElementById('chartCanvas').getContext('2d');
   const base={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{font:{family:'DM Sans'},boxWidth:14}}},
     scales:{x:{ticks:{font:{family:'DM Sans',size:10}},grid:{display:false}},
             y:{ticks:{font:{family:'DM Sans',size:10}},grid:{color:'rgba(13,27,53,0.06)'}}}};
+  if(currentTab==='lastyear'&&stats){
+    const sw=stats.weekly;
+    base.scales.y.ticks.callback=v=>fK(v);
+    chart=new Chart(ctx,{type:'bar',data:{labels:sw.map(w=>w.monday),datasets:[
+      {label:'Invoiced',data:sw.map(w=>w.invoiced),backgroundColor:'#9B813F',borderRadius:4},
+      {label:'Same Week Last Year',data:sw.map(w=>w.lyInvoiced),backgroundColor:'#0d1b35',borderRadius:4}
+    ]},options:base});
+    return;
+  }
+  const labels=weeks.map(w=>w.weekLabel);
+  const ms=weeks.map(getMetrics);
   if(currentTab==='revenue'){
     base.scales.y.ticks.callback=v=>fK(v);
     chart=new Chart(ctx,{type:'line',data:{labels,datasets:[
@@ -296,16 +342,22 @@ function renderChart(){
 
 function renderHistory(){
   const newestFirst=[...weeks].reverse();
+  // Stats rows (newest last) line up with block weeks by position from the end
+  // when both exist for the same weeks; look up by index-from-end, guarded.
+  const sw=stats?stats.weekly:null;
   document.getElementById('histList').innerHTML=newestFirst.map((w,i)=>{
     const m=getMetrics(w);
+    const s=(sw&&sw.length-1-i>=0)?sw[sw.length-1-i]:null;
     const enq=w.enquiries.map(e=>'<li><span>'+esc(e.name)+'</span><span class="sub">'+esc(e.source)+'</span></li>').join('')||'<li class="sub">none</li>';
     const qts=w.quotes.map(q=>'<li><span class="sub">'+(q.quoteNumber?'#'+esc(q.quoteNumber):'—')+'</span><span>'+fA(q.value)+'</span></li>').join('')||'<li class="sub">none</li>';
     const won=w.won.map(x=>'<li><span class="sub">'+esc(x.jobNumber||'—')+'</span><span>'+fA(x.value)+'</span></li>').join('')||'<li class="sub">none</li>';
+    const lySum=(s&&s.lyInvoiced!=null)?(' · last yr '+fK(s.lyInvoiced)):'';
+    const invSum=s?fK(s.invoiced):fK(m.inv);
     return '<div class="hrow" id="hr'+i+'">'+
       '<div class="hbar" onclick="document.getElementById(\'hr'+i+'\').classList.toggle(\'open\')">'+
         '<span class="caret">▶</span><span class="hwk">'+esc(w.weekLabel)+'</span>'+
         (i===0?'<span class="latest">LATEST</span>':'')+
-        '<span class="hsum">'+m.ec+' enquiries · '+m.qc+' quotes · '+fK(m.tv)+' quoted · '+m.wc+' won · '+fK(m.inv)+' invoiced</span>'+
+        '<span class="hsum">'+(s?s.enquiries:m.ec)+' enquiries · '+(s?s.quotesSent:m.qc)+' quotes · '+fK(s?s.quotesSentValue:m.tv)+' quoted · '+(s?s.won:m.wc)+' won · '+invSum+' invoiced'+lySum+'</span>'+
       '</div>'+
       '<div class="hdet">'+
         '<div class="hcol"><div class="hct">Enquiries ('+m.ec+')</div><ul>'+enq+'</ul></div>'+
