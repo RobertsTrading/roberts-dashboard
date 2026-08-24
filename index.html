@@ -26,6 +26,23 @@
 
   .main{padding:24px 28px;max-width:960px;margin:0 auto}
 
+  .goal{display:none;background:var(--white);border:.5px solid var(--gold-border);border-left:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--sh);padding:16px 20px;margin-bottom:14px}
+  .goal.show{display:block}
+  .goal .grow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  .goal .gl{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:.14em;text-transform:uppercase}
+  .goal .gv{font-family:'Playfair Display',serif;font-size:26px;color:var(--navy);line-height:1.1}
+  .goal .gp{font-size:13px;font-weight:600;color:var(--navy)}
+  .goal .gs{font-size:11px;color:var(--muted);margin-left:auto}
+  .goal .twrap{padding-top:20px}
+  .goal .track{position:relative;height:16px;background:#efe8d8;border-radius:8px}
+  .goal .fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:8px}
+  .goal .marker{position:absolute;top:-4px;width:2px;height:24px;background:var(--navy)}
+  .goal .mlabel{position:absolute;top:-20px;transform:translateX(-50%);font-size:9px;font-weight:600;color:var(--navy);white-space:nowrap}
+  .goal .gfoot{display:flex;gap:18px;margin-top:10px;font-size:11.5px;flex-wrap:wrap}
+  .goal .gfoot .du{color:var(--green);font-weight:600}
+  .goal .gfoot .dd{color:var(--red);font-weight:600}
+  .goal .gfoot .dn{color:var(--muted)}
+
   .qbar{display:none;background:var(--navy);border-left:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--sh);padding:16px 20px;margin-bottom:14px;align-items:baseline;gap:18px;flex-wrap:wrap}
   .qbar.show{display:flex}
   .qbar .ql{font-size:10px;font-weight:600;color:var(--gold);letter-spacing:.14em;text-transform:uppercase}
@@ -123,6 +140,7 @@
 </header>
 
 <main class="main">
+  <div class="goal" id="goalCard"></div>
   <div class="qbar" id="queueBar"></div>
   <div class="kg" id="kpiGrid"></div>
   <div class="avgbar" id="avgBar"></div>
@@ -219,6 +237,7 @@ function renderAll(lastUpdated){
     ?('Updated '+new Date(lastUpdated).toLocaleString('en-AU',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}))
     :'Saved data';
 
+  renderGoal();
   renderQueue();
   renderKpis(m,p,s,sp);
   renderAvgBar(m,p);
@@ -227,6 +246,27 @@ function renderAll(lastUpdated){
   if(currentTab==='lastyear'&&!stats) currentTab='revenue';
   renderChart();
   renderHistory();
+}
+
+function renderGoal(){
+  const card=document.getElementById('goalCard');
+  const g=stats&&stats.goal;
+  card.classList.toggle('show',!!g);
+  if(!g) return;
+  const pct=Math.min(g.captured/g.target*100,100);
+  const epct=Math.min(g.expected/g.target*100,100);
+  const remaining=Math.max(g.target-g.captured,0);
+  card.innerHTML=
+    '<div class="grow"><span class="gl">FY Goal · $3.3M by 1 July 2027</span>'+
+    '<span class="gv">'+fA(Math.round(g.captured))+'</span>'+
+    '<span class="gp">'+pct.toFixed(1)+'% captured</span>'+
+    '<span class="gs">from Xero, topped up live from ServiceM8 · ex GST</span></div>'+
+    '<div class="twrap"><div class="track"><div class="fill" style="width:'+pct+'%"></div>'+
+    '<div class="marker" style="left:'+epct+'%"></div>'+
+    '<div class="mlabel" style="left:'+epct+'%">today&#39;s pace · '+epct.toFixed(0)+'%</div></div></div>'+
+    '<div class="gfoot"><span class="'+(g.behind?'dd':'du')+'">'+(g.behind?'Behind pace by ':'Ahead of pace by ')+fK(Math.abs(g.diff))+'</span>'+
+    '<span class="dn">'+fK(g.needPerWeek)+' / week needed from here</span>'+
+    '<span class="dn">'+fK(remaining)+' to go</span></div>';
 }
 
 function renderQueue(){
