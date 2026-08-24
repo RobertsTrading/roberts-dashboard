@@ -9,6 +9,8 @@
  * KPI table (enquiries, quotes sent, invoiced, same-week-last-year from Xero,
  * quotes won). Fixes invoice parsing for the automation's
  * "$45,133.71 (8 invoices)" cell format.
+ * v3 (24 Aug 2026): also serves the FY GOAL panel ($3.3M by 1 Jul 2027) as
+ * `stats.goal` — captured, expected-by-today, ahead/behind, $ per week needed.
  *
  * DEPLOYMENT (one time, from the spreadsheet):
  *   1. Open the spreadsheet → Extensions → Apps Script
@@ -20,6 +22,9 @@
  *   7. Paste that URL into SHEET_API_URL at the top of index.html
  * To UPDATE an existing deployment (keeps the same URL): Deploy →
  * Manage deployments → pencil icon → Version: New version → Deploy.
+ * NOTE: that Deploy click can raise an "Authorise access" gate — it grants
+ * access to the owner's Google data, so the OWNER must click through it
+ * personally (Advanced → Go to Roberts Dashboard Feed → Allow).
  *
  * The response is cached for 5 minutes to stay well inside Google's free
  * quotas. Add ?fresh=1 to the URL to bypass the cache (the dashboard's
@@ -28,7 +33,7 @@
 
 var SHEET_NAME = 'Sheet1';
 var DASH_TAB = 'Dashboard';
-var CACHE_KEY = 'dashboard_json_v2';
+var CACHE_KEY = 'dashboard_json_v3';
 var CACHE_SECONDS = 300; // 5 minutes
 var DASHBOARD_URL = 'https://robertstrading.github.io/roberts-dashboard/';
 
@@ -77,7 +82,8 @@ function buildData() {
 /**
  * Reads the auto-maintained "Dashboard" tab (written hourly by the
  * ServiceM8 Sync script). Fixed layout: C5 = queue count, C6 = queue $,
- * C7 = updated stamp; weekly table headers on row 12, data from row 13:
+ * C7 = updated stamp; FY goal panel in I5:K9; weekly table headers on
+ * row 12, data from row 13:
  * A Mon | B Fri | C enquiries | D quotes sent | E quotes $ | F invoices |
  * G invoiced $ | H LY invoices | I LY $ | J won | K won $.
  * Returns null if the tab doesn't exist (old sheet layout).
@@ -95,6 +101,16 @@ function readStats(ss) {
       value: parseMoney(cell(6, 3)) || 0,
       updated: cell(7, 3)
     },
+    // FY goal panel (cols I:K, rows 5-9). Absent on old layouts → null.
+    goal: cell(5, 11) ? {
+      target: 3300000,
+      deadline: '1 Jul 2027',
+      captured: parseMoney(cell(5, 11)) || 0,
+      expected: parseMoney(cell(7, 11)) || 0,
+      behind: /behind/i.test(cell(8, 9)),
+      diff: parseMoney(cell(8, 11)) || 0,
+      needPerWeek: parseMoney(cell(9, 11)) || 0
+    } : null,
     weekly: []
   };
   for (var r = 13; r <= v.length; r++) {
