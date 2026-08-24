@@ -174,6 +174,8 @@ const SC={SMS:'#9B813F',Email:'#1a5f8a','Enquiry Text':'#7b4fa6','Dulux Lead':'#
 // Helpers (KEEP — these encode bug fixes):
 const fA=n=>'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2});
 const fK=n=>n>=1000?'$'+(n/1000).toFixed(1)+'k':'$'+Math.round(n);
+// Big money reads as millions — "$2675.4k" is unreadable on the goal card:
+const fM=n=>n>=1000000?'$'+(n/1000000).toFixed(2)+'M':fK(n);
 const sum=(a,k)=>a.reduce((t,b)=>t+(Number(b[k])||0),0);
 // Delta MUST take raw numbers, never formatted strings (past bug: "$41.9k" parsed as 41.9):
 const pctDelta=(curr,prev)=>prev>0?Math.round(((curr-prev)/prev)*100):null;
@@ -264,9 +266,9 @@ function renderGoal(){
     '<div class="twrap"><div class="track"><div class="fill" style="width:'+pct+'%"></div>'+
     '<div class="marker" style="left:'+epct+'%"></div>'+
     '<div class="mlabel" style="left:'+epct+'%">today&#39;s pace · '+epct.toFixed(0)+'%</div></div></div>'+
-    '<div class="gfoot"><span class="'+(g.behind?'dd':'du')+'">'+(g.behind?'Behind pace by ':'Ahead of pace by ')+fK(Math.abs(g.diff))+'</span>'+
+    '<div class="gfoot"><span class="'+(g.behind?'dd':'du')+'">'+(g.behind?'Behind pace by ':'Ahead of pace by ')+fM(Math.abs(g.diff))+'</span>'+
     '<span class="dn">'+fK(g.needPerWeek)+' / week needed from here</span>'+
-    '<span class="dn">'+fK(remaining)+' to go</span></div>';
+    '<span class="dn">'+fM(remaining)+' to go</span></div>';
 }
 
 function renderQueue(){
