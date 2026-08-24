@@ -4,6 +4,12 @@
  * Reads the "Weekly Report RT" spreadsheet (week blocks stacked vertically)
  * and serves clean JSON for the dashboard.
  *
+ * v2 (24 Aug 2026): also reads the auto-maintained "Dashboard" tab and serves
+ * it as `stats` — Ready To Schedule queue (count + $ ex GST) and the weekly
+ * KPI table (enquiries, quotes sent, invoiced, same-week-last-year from Xero,
+ * quotes won). Fixes invoice parsing for the automation's
+ * "$45,133.71 (8 invoices)" cell format.
+ *
  * DEPLOYMENT (one time, from the spreadsheet):
  *   1. Open the spreadsheet → Extensions → Apps Script
  *   2. Delete any code in the editor, paste this entire file, click the save icon
@@ -12,6 +18,8 @@
  *   5. Set:  Execute as: Me   |   Who has access: Anyone
  *   6. Click "Deploy", approve the permissions screen, copy the Web app URL
  *   7. Paste that URL into SHEET_API_URL at the top of index.html
+ * To UPDATE an existing deployment (keeps the same URL): Deploy →
+ * Manage deployments → pencil icon → Version: New version → Deploy.
  *
  * The response is cached for 5 minutes to stay well inside Google's free
  * quotas. Add ?fresh=1 to the URL to bypass the cache (the dashboard's
@@ -19,7 +27,8 @@
  */
 
 var SHEET_NAME = 'Sheet1';
-var CACHE_KEY = 'dashboard_json_v1';
+var DASH_TAB = 'Dashboard';
+var CACHE_KEY = 'dashboard_json_v2';
 var CACHE_SECONDS = 300; // 5 minutes
 var DASHBOARD_URL = 'https://robertstrading.github.io/roberts-dashboard/';
 
@@ -60,8 +69,52 @@ function buildData() {
   var values = sheet.getDataRange().getDisplayValues();
   return {
     weeks: parseWeeks(values),
+    stats: readStats(ss),
     lastUpdated: new Date().toISOString()
   };
+}
+
+/**
+ * Reads the auto-maintained "Dashboard" tab (written hourly by the
+ * ServiceM8 Sync script). Fixed layout: C5 = queue count, C6 = queue $,
+ * C7 = updated stamp; weekly table headers on row 12, data from row 13:
+ * A Mon | B Fri | C enquiries | D quotes sent | E quotes $ | F invoices |
+ * G invoiced $ | H LY invoices | I LY $ | J won | K won $.
+ * Returns null if the tab doesn't exist (old sheet layout).
+ */
+function readStats(ss) {
+  var sh = ss.getSheetByName(DASH_TAB);
+  if (!sh) return null;
+  var v = sh.getDataRange().getDisplayValues();
+  var cell = function (r, c) { // 1-based, safe
+    return (v[r - 1] && v[r - 1][c - 1] != null) ? String(v[r - 1][c - 1]).trim() : '';
+  };
+  var stats = {
+    readyToSchedule: {
+      count: parseInt(cell(5, 3), 10) || 0,
+      value: parseMoney(cell(6, 3)) || 0,
+      updated: cell(7, 3)
+    },
+    weekly: []
+  };
+  for (var r = 13; r <= v.length; r++) {
+    if (!cell(r, 1)) continue;
+    var lyN = cell(r, 8), lyV = cell(r, 9);
+    stats.weekly.push({
+      monday: cell(r, 1),
+      friday: cell(r, 2),
+      enquiries: parseInt(cell(r, 3), 10) || 0,
+      quotesSent: parseInt(cell(r, 4), 10) || 0,
+      quotesSentValue: parseMoney(cell(r, 5)) || 0,
+      invoices: parseInt(cell(r, 6), 10) || 0,
+      invoiced: parseMoney(cell(r, 7)) || 0,
+      lyInvoices: /^\d/.test(lyN) ? (parseInt(lyN, 10) || 0) : null,
+      lyInvoiced: /[\d$]/.test(lyV) ? (parseMoney(lyV) || 0) : null,
+      won: parseInt(cell(r, 10), 10) || 0,
+      wonValue: parseMoney(cell(r, 11)) || 0
+    });
+  }
+  return stats;
 }
 
 /* ===================== PURE PARSING CORE =====================
@@ -70,9 +123,11 @@ function buildData() {
  *
  * Sheet layout (per week block):
  *   header row : col A = start date DD/MM, col B = end date DD/MM (yellow)
- *   data rows  : B=enquiry name, C=enquiry source,
+ *   data rows  : B=enquiry name, C=enquiry source (or "#1607" job number,
+ *                written by the ServiceM8 automation),
  *                D=quote number (or "Quotes:"/"Total:" label), E=quote value,
- *                F="Invoice:" label, G=invoice value ("70k" shorthand allowed),
+ *                F="Invoice:" label, G=invoice value ("70k" shorthand and
+ *                "$45,133.71 (8 invoices)" automation format allowed),
  *                H="Quotes Won:"/"Total" label, I=won value, J=job number
  *   Total rows (labelled "Total:" or an unlabelled green row whose value
  *   equals the running sum) are skipped — totals are recomputed downstream.
@@ -133,8 +188,10 @@ function parseWeeks(values) {
     }
 
     // --- Invoice (col F label, col G value) ---
+    // The automation writes "$45,133.71 (8 invoices)" — strip the bracketed
+    // count before parsing, or the whole cell reads as unparseable ($0 bug).
     if (/^invoice/i.test(cell(5))) {
-      var inv = parseMoney(cell(6));
+      var inv = parseMoney(cell(6).replace(/\s*\(.*\)\s*$/, ''));
       if (inv !== null) cur.invoiceValue = inv;
     }
 
@@ -160,7 +217,7 @@ function parseWeeks(values) {
 }
 
 function isDayMonth(s) {
-  return /^\d{1,2}\/\d{1,2}$/.test(s);
+  return /^\d{1,2}\/\d{1,2}(\/\d{2,4})?$/.test(s) && /^\d{1,2}\/\d{1,2}/.test(s);
 }
 
 function sumValues(items) {
@@ -182,10 +239,12 @@ function parseMoney(raw) {
 }
 
 // Free-text sources -> canonical buckets. Order matters; verified against
-// the historical weeks in the project brief.
+// the historical weeks in the project brief. "#1607" job numbers written by
+// the ServiceM8 automation get their own bucket.
 function normaliseSource(rawSrc, name) {
   var s = (rawSrc || '').trim().toLowerCase();
   var n = (name || '').trim().toLowerCase();
+  if (s.charAt(0) === '#') return 'ServiceM8';
   if (s.indexOf('dulux') !== -1 || n.indexOf('dulux') !== -1) return 'Dulux Lead';
   if (!s) return 'Other';
   if (s.indexOf('google') !== -1) return 'Google';
