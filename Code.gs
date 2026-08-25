@@ -9,8 +9,9 @@
  * KPI table (enquiries, quotes sent, invoiced, same-week-last-year from Xero,
  * quotes won). Fixes invoice parsing for the automation's
  * "$45,133.71 (8 invoices)" cell format.
- * v3 (24 Aug 2026): also serves the FY GOAL panel ($3.3M by 1 Jul 2027) as
- * `stats.goal` — captured, expected-by-today, ahead/behind, $ per week needed.
+ * v3 (24 Aug 2026): serves the FY GOAL panel as `stats.goal`.
+ * v4 (25 Aug 2026): lead source is no longer collected — each enquiry carries
+ * `ref` (its ServiceM8 job number) for the dashboard to show as its tag.
  *
  * DEPLOYMENT (one time, from the spreadsheet):
  *   1. Open the spreadsheet → Extensions → Apps Script
@@ -33,7 +34,7 @@
 
 var SHEET_NAME = 'Sheet1';
 var DASH_TAB = 'Dashboard';
-var CACHE_KEY = 'dashboard_json_v3';
+var CACHE_KEY = 'dashboard_json_v4';
 var CACHE_SECONDS = 300; // 5 minutes
 var DASHBOARD_URL = 'https://robertstrading.github.io/roberts-dashboard/';
 
@@ -179,6 +180,10 @@ function parseWeeks(values) {
       cur.enquiries.push({
         id: 'e' + (cur.enquiries.length + 1),
         name: b.replace(/\.+$/, '').trim(),
+        // Lead source is no longer collected (owner's call, 24 Aug 2026) —
+        // col C now just carries the ServiceM8 job number. `source` is kept
+        // for the historical weeks that still have it typed in.
+        ref: /^#/.test(cell(2)) ? cell(2) : '',
         source: normaliseSource(cell(2), b)
       });
     }
