@@ -316,15 +316,21 @@ function renderAvgBar(m,p){
     '<span class="ad">'+(p?deltaHtml(m.aq,p.aq):'')+'</span>';
 }
 
-function renderDetails(w,m){
-  // source summary chips
-  const counts={};
-  w.enquiries.forEach(e=>counts[e.source]=(counts[e.source]||0)+1);
-  const chips=SRC.filter(s=>counts[s]).map(s=>
-    '<span class="chip" style="background:'+SC[s]+'">'+esc(s)+' · '+counts[s]+'</span>').join('');
+// Lead source is no longer collected (owner's call, 24 Aug 2026). Each enquiry
+// now shows its ServiceM8 job number; weeks recorded before the change still
+// show the source text that was typed at the time.
+function enqTag(e){
+  if(e.ref) return {text:e.ref, colour:SC.ServiceM8};
+  if(e.source && e.source!=='ServiceM8') return {text:e.source, colour:SC[e.source]||SC.Other};
+  return null;
+}
 
-  const enqList=w.enquiries.length?w.enquiries.map(e=>
-    '<li><span class="nm">'+esc(e.name)+'</span><span class="tag" style="background:'+(SC[e.source]||SC.Other)+'">'+esc(e.source)+'</span></li>').join(''):'<li class="empty">No enquiries logged yet</li>';
+function renderDetails(w,m){
+  const enqList=w.enquiries.length?w.enquiries.map(e=>{
+    const t=enqTag(e);
+    return '<li><span class="nm">'+esc(e.name)+'</span>'+
+      (t?'<span class="tag" style="background:'+t.colour+'">'+esc(t.text)+'</span>':'')+'</li>';
+  }).join(''):'<li class="empty">No enquiries logged yet</li>';
 
   const qList=w.quotes.length?w.quotes.map(q=>
     '<li><span class="qnum">'+(q.quoteNumber?'#'+esc(q.quoteNumber):'—')+'</span><span class="qval">'+fA(q.value)+'</span></li>').join(''):'<li class="empty">No quotes logged yet</li>';
@@ -334,7 +340,7 @@ function renderDetails(w,m){
 
   document.getElementById('detailGrid').innerHTML=
     '<div class="dc"><div class="dh"><span class="dt">Enquiries</span><span class="dwk">'+esc(w.weekLabel)+'</span></div>'+
-      '<div class="chips">'+chips+'</div><ul class="dl">'+enqList+'</ul></div>'+
+      '<ul class="dl">'+enqList+'</ul></div>'+
     '<div class="dc"><div class="dh"><span class="dt">Quotes Sent</span><span class="dwk">'+esc(w.weekLabel)+'</span></div>'+
       '<ul class="dl">'+qList+'</ul><div class="dtot"><span>Total quoted</span><span>'+fA(m.tv)+'</span></div></div>'+
     '<div class="dc dk"><div class="dh"><span class="dt">Jobs Won</span><span class="dwk">'+esc(w.weekLabel)+'</span></div>'+
@@ -390,7 +396,8 @@ function renderHistory(){
   document.getElementById('histList').innerHTML=newestFirst.map((w,i)=>{
     const m=getMetrics(w);
     const s=(sw&&sw.length-1-i>=0)?sw[sw.length-1-i]:null;
-    const enq=w.enquiries.map(e=>'<li><span>'+esc(e.name)+'</span><span class="sub">'+esc(e.source)+'</span></li>').join('')||'<li class="sub">none</li>';
+    const enq=w.enquiries.map(e=>{const t=enqTag(e);
+      return '<li><span>'+esc(e.name)+'</span><span class="sub">'+(t?esc(t.text):'')+'</span></li>';}).join('')||'<li class="sub">none</li>';
     const qts=w.quotes.map(q=>'<li><span class="sub">'+(q.quoteNumber?'#'+esc(q.quoteNumber):'—')+'</span><span>'+fA(q.value)+'</span></li>').join('')||'<li class="sub">none</li>';
     const won=w.won.map(x=>'<li><span class="sub">'+esc(x.jobNumber||'—')+'</span><span>'+fA(x.value)+'</span></li>').join('')||'<li class="sub">none</li>';
     const lySum=(s&&s.lyInvoiced!=null)?(' · last yr '+fK(s.lyInvoiced)):'';
